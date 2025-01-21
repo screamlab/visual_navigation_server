@@ -1,0 +1,56 @@
+
+services:
+  VisualNav-server:
+    image: registry.screamtrumpet.csie.ncku.edu.tw/seanpai/visual-navigation-server:latest
+    container_name: VisualNav-server
+    pull_policy: always
+    ports:
+      - "3000:3000"
+    depends_on:
+      - VisualNav-postgres
+    env_file:
+      - .env
+    networks:
+      - app_network
+    command: >
+      sh -c "
+      until nc -z $DATABASE_HOST $DATABASE_PORT; do
+        echo 'Waiting for PostgreSQL...';
+        sleep 1;
+      done;
+      knex migrate:latest --env production && npm run start
+      "
+
+  VisualNav-postgres:
+    image: postgres:17
+    container_name: VisualNav-postgres
+    restart: always
+    environment:
+      - POSTGRES_USER=$DATABASE_USER
+      - POSTGRES_PASSWORD=$DATABASE_PASSWORD
+      - POSTGRES_DB=$DATABASE_NAME
+      - TZ=Asia/Taipei
+      - PGTZ=Asia/Taipei
+    env_file:
+      - .env
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    networks:
+      - app_network
+
+  taica_frontend:
+    image: registry.screamtrumpet.csie.ncku.edu.tw/ocarpan/taica_frontend:latest
+    container_name: VisualNav-frontend
+    pull_policy: always
+    depends_on:
+      - VisualNav-server
+    ports:
+      - "3001:3001"
+    environment:
+      - REACT_APP_API_URL=$REACT_APP_API_URL
+    networks:
+      - app_network
+
+networks:
+  app_network:
+    driver: bridge
